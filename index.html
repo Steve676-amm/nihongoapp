@@ -111,6 +111,7 @@ body.aio #ai{display:flex}
 .aikey{display:flex;flex-direction:column;gap:10px}
 .aikey input,.aikey select{background:var(--bg);color:var(--t);border:1px solid var(--b);border-radius:8px;padding:9px 11px;font:inherit}
 .aikey .btn{margin:0}
+.aiprov{border:1px solid var(--b);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}.aiprov b{font-size:14.5px}.ainote{font-size:12px;color:var(--m);margin-bottom:5px}
 .aidot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--m);margin:0 2px;animation:aib 1s infinite}.aidot:nth-child(2){animation-delay:.2s}.aidot:nth-child(3){animation-delay:.4s}
 @keyframes aib{0%,80%,100%{opacity:.25}40%{opacity:1}}
 @media (max-width:980px){#ai{left:0;right:0;top:auto;width:auto;height:72vh;border-left:0;border-top:1px solid var(--b);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.35);padding-top:0}}
@@ -165,7 +166,7 @@ function progress(){
   <div class="m" style="margin-top:14px">Persentase = item yang sudah di level hafal/kuat menurut ukuran tiap app. Streak dan achievement belum tersedia karena tiap app mencatat aktivitas dengan cara berbeda.</div>`}
 function more(){return`<h1>Lainnya</h1><h3 style="margin-top:22px">Tampilan</h3><div class="card row" style="max-width:520px"><span>Tema</span><button class="ghost" data-act="theme">Ganti terang / gelap</button></div>
   <h3>Target belajar</h3><div class="card row" style="max-width:520px"><span>Target minimal harian (menit)</span><input id="tgt" type="number" min="5" max="600" value="${W.target||180}" style="width:84px;background:var(--bg);color:var(--t);border:1px solid var(--b);border-radius:8px;padding:7px 10px;font:inherit"></div>
-  <h3>Asisten AI</h3><div class="card aikey" style="max-width:520px"><div class="m">Tombol <b>🤖 Tanya AI</b> muncul di setiap app belajar. Pilih penyedia AI lalu tempel API key-nya. Key hanya disimpan di browser ini dan tidak ikut backup.</div><div class="row"><span>Penyedia</span><select id="aiprov">${['gemini','claude'].map(p=>`<option value="${p}"${aiP()===p?' selected':''}>${AIN[p]}${p==='gemini'?' (ada jatah gratis)':' (berbayar)'}</option>`).join('')}</select></div><div class="row"><span>API key ${AIN[aiP()]}</span><input id="aikey" type="password" autocomplete="off" placeholder="${aiKey()?'Tersimpan (…'+aiKey().slice(-4)+')':'tempel key di sini'}" style="width:230px"></div><div class="m">${AIL[aiP()]}</div><div class="row"><span>Model</span><select id="aimodel">${aiModelOpts()}</select></div>${aiKey()?'<div><button class="ghost" data-ai="delkey">Hapus API key '+AIN[aiP()]+'</button></div>':''}</div>
+  <h3>Asisten AI</h3><div class="card aikey" style="max-width:560px"><div class="m">Tombol <b>🤖 Tanya AI</b> muncul di setiap app belajar. Simpan key dari satu atau lebih penyedia. Kalau penyedia utama gagal (server penuh, jatah habis), hub otomatis pindah ke penyedia lain yang punya key. Key hanya disimpan di browser ini dan tidak ikut backup.</div><div class="row"><span>Penyedia utama</span><select id="aiprov">${AIP.map(p=>`<option value="${p}"${aiP()===p?' selected':''}>${AIN[p]}${AIFREE[p]?' (gratis)':' (berbayar)'}</option>`).join('')}</select></div><label class="row"><span>Pindah otomatis ke cadangan</span><input type="checkbox" id="aifb"${LS('nihongo:ai-fb')==='0'?'':' checked'}></label>${AIP.map(aiBlock).join('')}<div class="m">Urutan cadangan: penyedia utama dulu, lalu Gemini → Groq → OpenRouter → Claude (yang punya key saja). Claude berbayar, jadi hanya terpakai kalau kamu menyimpan key-nya.</div><label class="row"><span>Simpan jawaban di perangkat (hemat kuota)</span><input type="checkbox" id="aicache"${LS('nihongo:ai-cache-on')==='0'?'':' checked'}></label><div class="row"><span class="m">Pertanyaan pertama yang sama di layar yang sama dijawab dari simpanan. Tersimpan: ${aiCacheN()} jawaban.</span><button class="ghost" data-ai="clearcache">Hapus simpanan</button></div></div>
   <h3>Backup progres</h3><div class="card" style="max-width:520px"><div class="m">Progres semua app tersimpan di browser ini. Ekspor sebelum membersihkan cache atau berganti perangkat.</div><div class="row" style="justify-content:flex-start;margin-top:12px"><button class="ghost" data-act="exp">Ekspor semua</button><button class="ghost" data-act="imp">Impor</button><input id="file" type="file" accept="application/json" hidden></div></div>`}
 const NAV=[['home','🏠','Home'],['','','Materi'],['m_pertanian','🌱','SSW Pertanian'],['m_pengolahan','🍱','SSW Pengolahan Makanan'],['m_n5n4','📘','N5 · N4 · Irodori'],['m_n3','🔷','N3'],['','','Pantau & latihan'],['progress','📊','Progress'],['waktu','⏱️','Waktu'],['latihan','🎯','Latihan'],['more','⚙️','Lainnya']];
 function draw(){calc();
@@ -183,7 +184,7 @@ document.addEventListener('click',e=>{
   if(e.target.id==='back')return closeApp();
   const a=e.target.dataset.act;
   if(a==='theme'){const r=document.documentElement,cur=r.dataset.theme||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'),n=cur==='light'?'dark':'light';r.dataset.theme=n;try{localStorage.setItem('nihongo:hub-theme',n)}catch(x){}}
-  if(a==='exp'){const o={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.indexOf('nihongo:ai-key')!==0)o[k]=localStorage.getItem(k)}}catch(x){}
+  if(a==='exp'){const o={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.indexOf('nihongo:ai-key')!==0&&k!=='nihongo:ai-cache')o[k]=localStorage.getItem(k)}}catch(x){}
     const u=URL.createObjectURL(new Blob([JSON.stringify({nihongo:1,data:o})],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download='nihongo-backup.json';l.click()}
   if(a==='imp')$('file').click();
   if(a==='rstw'&&confirm('Hapus semua data waktu belajar? Ini tidak bisa dibatalkan.')){W={log:{},target:W.target};saveW();draw()}
@@ -268,21 +269,29 @@ function waktu(){const k=ld(),today=dayOf(k),wk=allSum(f7),tot=allSum();
 const th=LS('nihongo:hub-theme');if(th)document.documentElement.dataset.theme=th;
 draw();
 
-/* ===== Asisten AI (Claude atau Gemini, langsung dari browser) ===== */
+/* ===== Asisten AI: Gemini, Groq, Claude + cadangan otomatis ===== */
 var AI=null;
-var AIMS={claude:[['claude-haiku-4-5-20251001','Claude Haiku 4.5 (cepat & murah)'],['claude-sonnet-5-5','Claude Sonnet 5.5 (lebih teliti)']],gemini:[['gemini-3.5-flash','Gemini 3.5 Flash (gratis, lebih teliti)'],['gemini-3.1-flash-lite','Gemini 3.1 Flash-Lite (gratis, paling cepat)'],['auto','Otomatis (cari model Flash yang tersedia)']]};
-var AIN={claude:'Claude',gemini:'Gemini'};
-var AIL={claude:'Buat key di console.anthropic.com → API Keys (perlu isi saldo dulu).',gemini:'Buat key gratis di aistudio.google.com/app/apikey (masuk dengan akun Google, tanpa billing). Jatah gratis ada batasnya per hari/menit.'};
-var AIK={claude:'nihongo:ai-key',gemini:'nihongo:ai-key-gemini'},AIMK={claude:'nihongo:ai-model',gemini:'nihongo:ai-model-gemini'};
-function aiP(){const p=LS('nihongo:ai-provider');return p==='claude'||p==='gemini'?p:(LS(AIK.claude)&&!LS(AIK.gemini)?'claude':'gemini')}
-function aiKey(p){return LS(AIK[p||aiP()])}
-function aiModel(p){p=p||aiP();const m=LS(AIMK[p]);return AIMS[p].some(x=>x[0]===m)||(p==='gemini'&&/^gemini-[\w.\-]+$/.test(m||''))?m:AIMS[p][0][0]}
-function aiModelOpts(){const p=aiP(),cur=aiModel(p),L=AIMS[p].slice();if(!L.some(x=>x[0]===cur))L.push([cur,cur+' (terdeteksi otomatis)']);return L.map(m=>'<option value="'+m[0]+'"'+(cur===m[0]?' selected':'')+'>'+m[1]+'</option>').join('')}
-function aiSet(k,v){try{localStorage.setItem(k,v)}catch(x){}if(AI&&k===AIK.gemini)AI.gm=null}
-async function aiGemFind(key){const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':key}});if(!r.ok)return null;const j=await r.json();const v=n=>{const m=n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/);return parseFloat(m[1])*10+(m[2]?0:1)};const c=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).indexOf('generateContent')>=0).map(m=>String(m.name).replace('models/','')).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n));c.sort((a,b)=>v(b)-v(a));return c[0]||null}
+var AIP=['gemini','groq','openrouter','claude'];
+var AIN={gemini:'Gemini',groq:'Groq',openrouter:'OpenRouter',claude:'Claude'};
+var AIFREE={gemini:1,groq:1,openrouter:1,claude:0};
+var AIMS={
+ gemini:[['gemini-3.1-flash-lite','Gemini 3.1 Flash-Lite (jarang penuh, disarankan)'],['gemini-3.5-flash','Gemini 3.5 Flash (lebih teliti, lebih sering penuh)'],['auto','Otomatis (cari model Flash yang tersedia)']],
+ groq:[['openai/gpt-oss-120b','GPT-OSS 120B (lebih teliti)'],['openai/gpt-oss-20b','GPT-OSS 20B (paling cepat)'],['auto','Otomatis (cari model yang tersedia)']],
+ openrouter:[['auto','Otomatis (pilih model gratis yang tersedia)'],['openai/gpt-oss-120b:free','GPT-OSS 120B (gratis)'],['meta-llama/llama-3.3-70b-instruct:free','Llama 3.3 70B (gratis)']],
+ claude:[['claude-haiku-4-5-20251001','Claude Haiku 4.5 (cepat & murah)'],['claude-sonnet-5-5','Claude Sonnet 5.5 (lebih teliti)']]};
+var AIL={gemini:'Key gratis: aistudio.google.com/app/apikey (akun Google, tanpa billing).',groq:'Key gratis: console.groq.com → API Keys (tanpa kartu kredit).',openrouter:'Key gratis: openrouter.ai/keys (tanpa kartu kredit). Hanya model berlabel :free yang dipakai; jatah hariannya kecil, jadi cocok sebagai cadangan.',claude:'Key: console.anthropic.com → API Keys (berbayar, perlu isi saldo).'};
+var AIK={gemini:'nihongo:ai-key-gemini',groq:'nihongo:ai-key-groq',openrouter:'nihongo:ai-key-openrouter',claude:'nihongo:ai-key'},AIMK={gemini:'nihongo:ai-model-gemini',groq:'nihongo:ai-model-groq',openrouter:'nihongo:ai-model-openrouter',claude:'nihongo:ai-model'};
+function aiKey(p){return LS(AIK[p])}
+function aiHave(){return AIP.filter(p=>aiKey(p))}
+function aiP(){const p=LS('nihongo:ai-provider');if(AIP.indexOf(p)>=0)return p;const h=aiHave();return h.length?h[0]:'gemini'}
+function aiOrder(){const h=aiHave();if(!h.length)return[];const pr=aiP(),f=h.indexOf(pr)>=0?pr:h[0];return LS('nihongo:ai-fb')==='0'?[f]:[f].concat(h.filter(x=>x!==f))}
+function aiModel(p){const m=LS(AIMK[p]);return AIMS[p].some(x=>x[0]===m)||(p!=='claude'&&/^[\w.\-\/:]+$/.test(m||''))?m:AIMS[p][0][0]}
+function aiModelOpts(p){const cur=aiModel(p),L=AIMS[p].slice();if(!L.some(x=>x[0]===cur))L.push([cur,cur+' (terdeteksi otomatis)']);return L.map(m=>'<option value="'+m[0]+'"'+(cur===m[0]?' selected':'')+'>'+m[1]+'</option>').join('')}
+function aiBlock(p){const k=aiKey(p);return '<div class="aiprov"><div class="row"><b>'+AIN[p]+'</b><span class="m">'+(k?'✓ tersimpan (…'+aiH(k.slice(-4))+')':'belum ada key')+'</span></div><div class="row"><span>API key</span><input id="aikey-'+p+'" type="password" autocomplete="off" placeholder="'+(k?'ganti key…':'tempel key di sini')+'" style="width:230px"></div><div class="m">'+AIL[p]+'</div><div class="row"><span>Model</span><select id="aimodel-'+p+'">'+aiModelOpts(p)+'</select></div>'+(k?'<div><button class="ghost" data-ai="delkey" data-p="'+p+'">Hapus key '+AIN[p]+'</button></div>':'')+'</div>'}
+function aiSet(k,v){try{localStorage.setItem(k,v)}catch(x){}if(AI)AI.mc={}}
 const AIQ=[['Kenapa jawabannya begitu?','Jelaskan kenapa jawaban yang benar di layar ini benar. Kalau aku sudah menjawab dan salah (tanda ❌), jelaskan juga kenapa pilihanku keliru dan apa bedanya.'],['Arti & cara baca','Jelaskan arti, cara baca (hiragana + romaji), dan nuansa pemakaian kata atau soal yang ada di layar ini.'],['Contoh kalimat','Beri 3 contoh kalimat sederhana (Jepang + hiragana + arti Indonesia) untuk kata atau pola di layar ini.'],['Cara mengingat','Beri trik atau jembatan keledai untuk mengingat ini, boleh pakai asosiasi bunyi bahasa Indonesia atau komponen kanji.']];
 const aiH=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const aiMd=s=>aiH(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/^#+\s*(.*)$/gm,'<b>$1</b>').replace(/^\s*[-*] /gm,'• ').replace(/\n/g,'<br>');
+const aiMd=s=>aiH(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/^#+\s*(.*)$/gm,'<b>$1</b>').replace(/^\s*[-*] /gm,'• ').replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,;:!?]|$)/g,'$1<i>$2</i>').replace(/\n/g,'<br>');
 function aiSync(){
   if(!AI)return;
   if(!open){AI.on=false;AI.app=null}
@@ -307,68 +316,129 @@ function aiCtx(){
   }catch(e){return''}
 }
 function aiRender(){
-  const m=$('aimsgs'),p=aiP(),has=!!aiKey(p);
+  const m=$('aimsgs'),has=aiHave().length>0,p=aiOrder()[0]||aiP();
   $('aiapp').textContent=open?(($('ttl').textContent||'')+' · '+AIN[p]):'';
   $('aiin').style.display=has?'':'none';$('aichips').style.display=has?'':'none';
   if(!has){
-    m.innerHTML='<div class="aikey"><div class="aihint">Pilih penyedia AI dan tempel API key-nya sekali saja. Key tersimpan hanya di browser ini, dan teks layar app dikirim langsung ke penyedia yang kamu pilih saat bertanya.</div><select id="aip2">'+['gemini','claude'].map(x=>'<option value="'+x+'"'+(x===p?' selected':'')+'>'+AIN[x]+(x==='gemini'?' (ada jatah gratis)':' (berbayar)')+'</option>').join('')+'</select><div class="aihint">'+AIL[p]+'</div><input id="aik2" type="password" autocomplete="off" placeholder="tempel API key '+AIN[p]+'"><button class="btn" data-ai="savekey">Simpan & mulai</button></div>';return}
+    m.innerHTML='<div class="aikey"><div class="aihint">Pilih penyedia AI dan tempel API key-nya sekali saja (kamu bisa menambah penyedia cadangan nanti di Lainnya). Key tersimpan hanya di browser ini, dan teks layar app dikirim langsung ke penyedia yang kamu pilih saat bertanya.</div><select id="aip2">'+AIP.map(x=>'<option value="'+x+'"'+(x===aiP()?' selected':'')+'>'+AIN[x]+(AIFREE[x]?' (gratis)':' (berbayar)')+'</option>').join('')+'</select><div class="aihint">'+AIL[aiP()]+'</div><input id="aik2" type="password" autocomplete="off" placeholder="tempel API key '+AIN[aiP()]+'"><button class="btn" data-ai="savekey">Simpan & mulai</button></div>';return}
   const L=AI.msgs;
   let h=L.length?'':'<div class="aihint">Habis menjawab soal, tekan <b>Kenapa jawabannya begitu?</b> atau ketik pertanyaanmu. Aku bisa membaca layar app yang sedang terbuka.</div>';
-  L.forEach(x=>{h+='<div class="aim '+(x.err?'e':x.role==='user'?'u':'a')+'">'+(x.role==='user'?aiH(x.label||x.content):aiMd(x.content))+'</div>'});
+  L.forEach(x=>{h+='<div class="aim '+(x.err?'e':x.role==='user'?'u':'a')+'">'+(x.note?'<div class="ainote">↪ '+aiH(x.note)+'</div>':'')+(x.role==='user'?aiH(x.label||x.content):aiMd(x.content))+'</div>'});
   if(AI.busy)h+='<div class="aim a"><i class="aidot"></i><i class="aidot"></i><i class="aidot"></i></div>';
   m.innerHTML=h;m.scrollTop=m.scrollHeight;
   $('aichips').innerHTML=AIQ.map((q,i)=>'<button data-ai="chip" data-i="'+i+'"'+(AI.busy?' disabled':'')+'>'+q[0]+'</button>').join('');
   $('aisend').disabled=!!AI.busy;
 }
+/* daftar model gratis OpenRouter, diurutkan dari yang paling cocok untuk tutor bahasa */
+async function orList(){
+  if(AI.mc.orl)return AI.mc.orl;
+  const r=await fetch('https://openrouter.ai/api/v1/models');if(!r.ok)return[];
+  const j=await r.json(),sc=id=>/gpt-oss-120b/.test(id)?100:/llama-3\.3-70b/.test(id)?90:/qwen3?.*(235|80|72|32)b/i.test(id)?80:/deepseek/.test(id)?70:/gemma-3-27b/.test(id)?60:/mistral/.test(id)?50:10;
+  const l=(j.data||[]).filter(m=>{const id=String(m.id||'');if(!/:free$/.test(id))return false;if(/guard|embed|moderation|vision|image|audio|whisper|tts/i.test(id))return false;const o=(m.architecture&&m.architecture.output_modalities)||['text'];return o.indexOf('text')>=0&&o.length===1}).map(m=>m.id);
+  l.sort((a,b)=>sc(b)-sc(a));
+  return AI.mc.orl=l;
+}
+function aiHash(s){let a=0xdeadbeef,b=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677)}a=Math.imul(a^(a>>>16),2246822507)^Math.imul(b^(b>>>13),3266489909);b=Math.imul(b^(b>>>16),2246822507)^Math.imul(a^(a>>>13),3266489909);return (4294967296*(2097151&b)+(a>>>0)).toString(36)}
+function aiCacheAll(){try{return JSON.parse(localStorage.getItem('nihongo:ai-cache')||'{}')||{}}catch(e){return{}}}
+function aiCacheGet(k){const c=aiCacheAll()[k];return c?c[1]:null}
+function aiCachePut(k,t){try{const c=aiCacheAll();c[k]=[Date.now(),t];const ks=Object.keys(c);if(ks.length>150){ks.sort((x,y)=>c[x][0]-c[y][0]).slice(0,ks.length-150).forEach(x=>delete c[x])}localStorage.setItem('nihongo:ai-cache',JSON.stringify(c))}catch(e){}}
+function aiCacheN(){return Object.keys(aiCacheAll()).length}
+/* satu penyedia: kirim ulang kalau server penuh, cari model lain kalau 404 */
+async function aiOne(p,key,sys,msgs,fast){
+  const BUSY=[500,502,503,504,529],wait=ms=>new Promise(z=>setTimeout(z,ms));
+  const E=(st,kind,msg,why)=>{const e=new Error(msg);e.st=st;e.kind=kind;e.why=why;return e};
+  const post=(url,h,b)=>fetch(url,{method:'POST',headers:Object.assign({'content-type':'application/json'},h),body:JSON.stringify(b)});
+  let build,parse,find=null;
+  if(p==='gemini'){
+    find=async()=>{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':key}});if(!r.ok)return null;const j=await r.json();const v=n=>{const m=n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/);return parseFloat(m[1])*10+(m[2]?0:1)};const c=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).indexOf('generateContent')>=0).map(m=>String(m.name).replace('models/','')).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n));c.sort((a,b)=>v(b)-v(a));return c[0]||null};
+    build=m=>post('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{'x-goog-api-key':key},{systemInstruction:{parts:[{text:sys}]},contents:msgs.map(x=>({role:x.role==='user'?'user':'model',parts:[{text:x.content}]})),generationConfig:{maxOutputTokens:4096}});
+    parse=j=>{let t=(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(x=>x.text||'').join('').trim();if(!t&&j.promptFeedback&&j.promptFeedback.blockReason)t='Permintaan diblokir filter Gemini ('+j.promptFeedback.blockReason+'). Coba pertanyaan lain.';return t};
+  }else if(p==='groq'){
+    find=async()=>{const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{authorization:'Bearer '+key}});if(!r.ok)return null;const j=await r.json(),ids=(j.data||[]).map(x=>x.id);return ids.find(i=>i==='openai/gpt-oss-120b')||ids.find(i=>i==='openai/gpt-oss-20b')||ids.find(i=>/(llama|qwen|gpt-oss)/i.test(i)&&!/guard|whisper|tts|safeguard|prompt/i.test(i))||null};
+    build=m=>post('https://api.groq.com/openai/v1/chat/completions',{authorization:'Bearer '+key},Object.assign({model:m,messages:[{role:'system',content:sys}].concat(msgs),max_tokens:2048,temperature:0.4},/gpt-oss/.test(m)?{reasoning_effort:'low'}:{}));
+    parse=j=>String((((j.choices||[])[0]||{}).message||{}).content||'').trim();
+  }else if(p==='openrouter'){
+    find=async()=>(await orList())[0]||null;
+    build=m=>post('https://openrouter.ai/api/v1/chat/completions',{authorization:'Bearer '+key},{model:m,messages:[{role:'system',content:sys}].concat(msgs),max_tokens:2048,temperature:0.4});
+    parse=j=>String((((j.choices||[])[0]||{}).message||{}).content||'').trim();
+  }else{
+    build=m=>post('https://api.anthropic.com/v1/messages',{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},{model:m,max_tokens:900,system:sys,messages:msgs});
+    parse=j=>(j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n').trim();
+  }
+  let model=aiModel(p);
+  const run=async m=>{let x=await build(m);for(let n=1;n<=(fast?1:2)&&BUSY.indexOf(x.status)>=0;n++){await wait(1000*n);x=await build(m)}return x};
+  let r;
+  try{
+    if(model==='auto')model=AI.mc[p]||(AI.mc[p]=await find().catch(()=>null))||AIMS[p][0][0];
+    r=await run(model);
+    if(r.status===404&&find){const f=await find().catch(()=>null);if(f&&f!==model){AI.mc[p]=f;if(aiModel(p)!=='auto')aiSet(AIMK[p],f);model=f;r=await run(f)}}
+    if(p==='openrouter'&&(r.status===429||r.status===404||BUSY.indexOf(r.status)>=0)){const alts=(await orList().catch(()=>[])).filter(x=>x!==model).slice(0,fast?1:3);for(const m of alts){r=await build(m);if(r.ok)break}}
+    if(p==='gemini'&&!fast&&BUSY.indexOf(r.status)>=0){for(const m of ['gemini-3.1-flash-lite','gemini-3.5-flash'].filter(x=>x!==model)){await wait(800);r=await build(m);if(BUSY.indexOf(r.status)<0)break}}
+  }catch(e){throw E(0,'net','Permintaan ke '+AIN[p]+' tidak sampai. Biasanya karena internet putus, VPN/antivirus/ekstensi (adblock) memblokir '+({gemini:'generativelanguage.googleapis.com',groq:'api.groq.com',openrouter:'openrouter.ai',claude:'api.anthropic.com'})[p]+', atau hub dibuka di aplikasi yang membatasi koneksi.','tidak terhubung')}
+  const j=await r.json().catch(()=>({}));
+  if(r.ok&&p==='openrouter'&&j.error&&!j.choices)throw E(+j.error.code||500,'busy','Model gratis OpenRouter sedang bermasalah: '+(j.error.message||'tanpa keterangan'),'model gratis penuh');
+  if(!r.ok){
+    const em=(j.error&&(j.error.message||j.error))||'',st=r.status;
+    if(p==='gemini'?(st===403||(st===400&&/api key/i.test(em))):(st===401||st===403))throw E(st,'auth','API key '+AIN[p]+' ditolak. Cek lagi key-nya di Lainnya → Asisten AI.','key ditolak');
+    if(st===429)throw E(st,'quota',p==='claude'?'Terlalu banyak permintaan ke Claude.':'Jatah gratis '+AIN[p]+' sedang habis (reset berkala).','jatah habis');
+    if(st===402)throw E(st,'credit','Saldo API '+AIN[p]+' habis.','saldo habis');
+    if(st===404)throw E(st,'model','Tidak ada model '+AIN[p]+' yang bisa dipakai key ini. Pilih "Otomatis" di Lainnya → Asisten AI.','model tidak tersedia');
+    if(st===400&&/credit|balance/i.test(String(em)))throw E(st,'credit','Saldo API '+AIN[p]+' habis.','saldo habis');
+    if(st>=500)throw E(st,'busy','Server '+AIN[p]+' sedang penuh atau bermasalah.','server penuh');
+    throw E(st,'other','Gagal ('+st+'). '+em,'error '+st);
+  }
+  const out=parse(j);
+  return out||'(jawaban kosong)';
+}
 async function aiSend(text,label){
-  const p=aiP(),key=aiKey(p);if(!key||AI.busy||!text.trim())return;
+  const order=aiOrder();if(!order.length||AI.busy||!text.trim())return;
   AI.msgs.push({role:'user',content:text,label});AI.busy=true;aiRender();
   const ctx=aiCtx(),title=$('ttl').textContent;
-  const sys='Kamu tutor bahasa Jepang yang sabar untuk pelajar Indonesia (persiapan kerja SSW dan JLPT N5-N3). Jawab dalam bahasa Indonesia, ringkas dan jelas (sekitar 150 kata, lebih panjang hanya jika diminta). Setiap kata Jepang selalu sertakan hiragana dan artinya. Pengguna sedang membuka app belajar "'+title+'".\n\nTeks layar app saat ini (bisa tidak lengkap; ✅ = jawaban benar, ❌ = jawaban salah/pilihan pengguna yang keliru):\n---\n'+(ctx||'(layar tidak terbaca)')+'\n---\nLayar bisa sudah berganti sejak pesan sebelumnya. Kalau pertanyaan merujuk "ini" atau "kenapa", pakai layar tersebut. Kalau informasinya tidak cukup, bilang jujur dan tanya balik singkat. Jangan mengarang arti atau aturan.';
+  const sys='Kamu tutor bahasa Jepang yang sabar untuk pelajar Indonesia (persiapan kerja SSW dan JLPT N5-N3). Jawab dalam bahasa Indonesia, ringkas dan jelas (sekitar 150 kata, lebih panjang hanya jika diminta). Setiap kata Jepang selalu sertakan hiragana dan artinya. Pengguna sedang membuka app belajar "'+title+'".\n\nTeks layar app saat ini (bisa tidak lengkap; ✅ = jawaban benar, ❌ = jawaban salah/pilihan pengguna yang keliru):\n---\n'+(ctx||'(layar tidak terbaca)')+'\n---\nLayar bisa sudah berganti sejak pesan sebelumnya. Kalau pertanyaan merujuk "ini" atau "kenapa", pakai layar tersebut. Kalau informasinya tidak cukup, bilang jujur dan tanya balik singkat. Jangan mengarang arti atau aturan. Untuk format, boleh pakai **tebal** dan daftar dengan tanda -, hindari tanda * tunggal.';
   let msgs=AI.msgs.filter(x=>!x.err).map(x=>({role:x.role,content:x.content})).slice(-12);
   while(msgs.length&&msgs[0].role!=='user')msgs.shift();
-  const mk=model=>p==='gemini'
-    ?['https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:msgs.map(m=>({role:m.role==='user'?'user':'model',parts:[{text:m.content}]})),generationConfig:{maxOutputTokens:4096}})}]
-    :['https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:900,system:sys,messages:msgs})}];
-  try{
-    let model=aiModel(p);
-    if(p==='gemini'&&model==='auto')model=AI.gm||(AI.gm=await aiGemFind(key))||'gemini-3.5-flash';
-    let rq=mk(model),r=await fetch(rq[0],rq[1]);
-    if(p==='gemini'&&r.status===404){const f=await aiGemFind(key).catch(()=>null);if(f&&f!==model){AI.gm=f;if(aiModel(p)!=='auto')aiSet(AIMK.gemini,f);rq=mk(f);r=await fetch(rq[0],rq[1])}}
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok){const em=(j.error&&j.error.message)||'',st=r.status;
-      throw new Error(
-        (p==='gemini'?(st===403||(st===400&&/api key/i.test(em))):st===401)?'API key '+AIN[p]+' ditolak. Cek lagi key-nya di Lainnya → Asisten AI.'
-        :st===429?(p==='gemini'?'Jatah gratis Gemini sedang habis. Tunggu beberapa menit (atau besok), lalu coba lagi.':'Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.')
-        :st===404&&p==='gemini'?'Tidak ada model Gemini yang bisa dipakai key ini. Pilih "Otomatis" di Lainnya → Asisten AI, atau buat key baru di aistudio.google.com.'
-        :st===400&&/credit|balance/i.test(em)?'Saldo API habis. Isi saldo di console.anthropic.com.'
-        :'Gagal ('+st+'). '+em)}
-    let out=p==='gemini'
-      ?(((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(x=>x.text||'').join('').trim()
-      :(j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n').trim();
-    if(!out&&p==='gemini'&&j.promptFeedback&&j.promptFeedback.blockReason)out='Permintaan diblokir filter Gemini ('+j.promptFeedback.blockReason+'). Coba pertanyaan lain.';
-    AI.msgs.push({role:'assistant',content:out||'(jawaban kosong)'});
-  }catch(e){AI.msgs.push({role:'assistant',err:1,content:(e instanceof TypeError||/failed to fetch|networkerror|load failed|network request/i.test(e.message))?'Permintaan ke '+AIN[p]+' tidak sampai. Biasanya karena internet putus, VPN/antivirus/ekstensi (adblock) memblokir '+(p==='gemini'?'generativelanguage.googleapis.com':'api.anthropic.com')+', atau hub dibuka di aplikasi yang membatasi koneksi. Coba buka hub di Chrome biasa.':e.message})}
+  const cacheOn=LS('nihongo:ai-cache-on')!=='0',ck=msgs.length===1?aiHash(title+'\n'+ctx+'\n'+msgs[0].content):null;
+  if(cacheOn&&ck){const c=aiCacheGet(ck);if(c){AI.msgs.push({role:'assistant',content:c,note:'Dari simpanan di perangkat (tidak memakai kuota).'});AI.busy=false;aiRender();return}}
+  const fails=[];let ok=false;
+  for(let i=0;i<order.length;i++){
+    const p=order[i];
+    try{
+      const out=await aiOne(p,aiKey(p),sys,msgs,i<order.length-1);
+      const m={role:'assistant',content:out};
+      if(fails.length)m.note='Dijawab oleh '+AIN[p]+' karena '+fails.map(f=>AIN[f.p]+' '+f.why).join(', ')+'.';
+      AI.msgs.push(m);ok=true;
+      if(cacheOn&&ck&&out&&out!=='(jawaban kosong)'&&out.indexOf('Permintaan diblokir')!==0)aiCachePut(ck,out);
+      break;
+    }catch(e){fails.push({p,msg:e.message,why:e.why||'gagal'})}
+  }
+  if(!ok){
+    const body=fails.length===1?fails[0].msg:fails.map(f=>'• '+AIN[f.p]+': '+f.msg).join('\n');
+    const tip=fails.some(f=>f.p===order[0]&&(f.msg.indexOf('penuh')>=0||f.msg.indexOf('habis')>=0))&&order.length===1?'\nTunggu sebentar lalu kirim lagi, atau tambah penyedia cadangan di Lainnya → Asisten AI.':'';
+    AI.msgs.push({role:'assistant',err:1,content:body+tip});
+  }
   AI.busy=false;aiRender();
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-ai]');if(!b||!AI)return;const a=b.dataset.ai;
   if(a==='toggle'){AI.on=!AI.on;aiSync();if(AI.on){aiRender();setTimeout(()=>{const q=$('aiq');if(q&&q.offsetParent)q.focus()},50)}}
   if(a==='close'){AI.on=false;aiSync()}
+  if(a==='clearcache'){try{localStorage.removeItem('nihongo:ai-cache')}catch(x){}draw();return}
   if(a==='reset'){AI.msgs=[];AI.busy=false;aiRender()}
   if(a==='chip'){const q=AIQ[+b.dataset.i];aiSend(q[1],q[0])}
   if(a==='send'){const q=$('aiq'),v=q.value.trim();if(v){q.value='';q.style.height='';aiSend(v)}}
   if(a==='savekey'){const k=$('aik2').value.trim(),p=$('aip2').value;if(!k)return;aiSet('nihongo:ai-provider',p);aiSet(AIK[p],k);aiRender()}
-  if(a==='delkey'&&confirm('Hapus API key '+AIN[aiP()]+' dari browser ini?')){try{localStorage.removeItem(AIK[aiP()])}catch(x){}draw();aiRender()}
+  if(a==='delkey'){const p=b.dataset.p||aiP();if(confirm('Hapus API key '+AIN[p]+' dari browser ini?')){try{localStorage.removeItem(AIK[p])}catch(x){}draw();aiRender()}}
 });
 document.addEventListener('keydown',e=>{if(e.target.id==='aiq'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();const v=e.target.value.trim();if(v){e.target.value='';aiSend(v)}}});
 document.addEventListener('input',e=>{if(e.target.id==='aiq'){e.target.style.height='auto';e.target.style.height=Math.min(120,e.target.scrollHeight)+'px'}});
 document.addEventListener('change',e=>{
-  const id=e.target.id;
+  const id=e.target.id||'';
   if(id==='aip2'){aiSet('nihongo:ai-provider',e.target.value);aiRender()}
   if(id==='aiprov'){aiSet('nihongo:ai-provider',e.target.value);draw();aiRender()}
-  if(id==='aikey'){const k=e.target.value.trim();if(k){aiSet(AIK[aiP()],k);draw();aiRender()}}
-  if(id==='aimodel')aiSet(AIMK[aiP()],e.target.value);
+  if(id==='aicache'){aiSet('nihongo:ai-cache-on',e.target.checked?'1':'0')}
+  if(id==='aifb'){aiSet('nihongo:ai-fb',e.target.checked?'1':'0')}
+  if(id.indexOf('aikey-')===0){const p=id.slice(6),k=e.target.value.trim();if(AIK[p]&&k){aiSet(AIK[p],k);draw();aiRender()}}
+  if(id.indexOf('aimodel-')===0){const p=id.slice(8);if(AIMK[p])aiSet(AIMK[p],e.target.value)}
 });
-AI={on:false,app:null,msgs:[],busy:false};aiSync();
+AI={on:false,app:null,msgs:[],busy:false,mc:{}};aiSync();
 </script></body></html>
